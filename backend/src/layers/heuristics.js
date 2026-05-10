@@ -1,6 +1,5 @@
 const punycode = require('punycode');
 const { distance } = require('fastest-levenshtein');
-const whoiser = require('whoiser');
 const cache = require('../utils/cache');
 
 const PROTECTED_BRANDS = [
@@ -120,19 +119,16 @@ async function newlyRegisteredDomain(senderDomain) {
   if (!senderDomain) return { points: 0, signal: null };
 
   const cacheKey = 'whois:' + senderDomain;
-  if (cache.has(cacheKey)) {
-    return cache.get(cacheKey);
-  }
+  if (cache.has(cacheKey)) return cache.get(cacheKey);
 
   try {
+    const { default: whoiser } = await import('whoiser');
     const result = await whoiser(senderDomain, { timeout: 3000 });
-    
-    // whoiser returns an object keyed by whois server
-    // Find the first entry that has a creation date
+
     let createdDate = null;
     for (const server of Object.values(result)) {
-      const created = server['Created Date'] || 
-                      server['Creation Date'] || 
+      const created = server['Created Date'] ||
+                      server['Creation Date'] ||
                       server['created'] ||
                       server['domain_dateregistered'];
       if (created) {
