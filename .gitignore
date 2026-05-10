@@ -1,0 +1,7 @@
+.claude/
+backend/ngrok.exe
+node_modules/
+.env
+*.log
+*.bin
+.claude/

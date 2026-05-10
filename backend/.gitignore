@@ -1,0 +1,7 @@
+node_modules/
+.env
+src/data/bloom_filter.bin
+*.log
+.claude/
+backend/ngrok.exe
+*.bin

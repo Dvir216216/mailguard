@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        margin: 0;
+        padding: 16px;
+        background: #fafafa;
+        color: #202124;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 12px 0;
+      }
+      p {
+        font-size: 13px;
+        color: #5f6368;
+        margin: 0 0 16px 0;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      input[type="range"] {
+        flex: 1;
+      }
+      .value {
+        font-weight: 600;
+        min-width: 32px;
+        text-align: right;
+      }
+      button {
+        background: #1a73e8;
+        color: #fff;
+        border: 0;
+        border-radius: 4px;
+        padding: 8px 16px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #9aa0a6;
+        cursor: not-allowed;
+      }
+      .status {
+        margin-top: 12px;
+        font-size: 12px;
+        color: #137333;
+      }
+      .status.error { color: #c5221f; }
+    </style>
+  </head>
+  <body>
+    <h1>MailGuard settings</h1>
+    <p>Score threshold above which an email is flagged as <b>MALICIOUS</b>.</p>
+
+    <div class="row">
+      <input
+        type="range"
+        id="threshold"
+        min="60"
+        max="80"
+        step="1"
+        value="70"
+        oninput="document.getElementById('value').innerText = this.value"
+      >
+      <span id="value" class="value">70</span>
+    </div>
+
+    <button id="save" onclick="onSave()">Save</button>
+    <div id="status" class="status"></div>
+
+    <script>
+      function onSave() {
+        var btn = document.getElementById('save');
+        var status = document.getElementById('status');
+        var value = parseInt(document.getElementById('threshold').value, 10);
+        btn.disabled = true;
+        status.className = 'status';
+        status.innerText = 'Saving...';
+        google.script.run
+          .withSuccessHandler(function (res) {
+            btn.disabled = false;
+            status.innerText = 'Saved (threshold = ' + res.threshold + ').';
+          })
+          .withFailureHandler(function (err) {
+            btn.disabled = false;
+            status.className = 'status error';
+            status.innerText = 'Error: ' + (err && err.message ? err.message : err);
+          })
+          .saveUserThreshold(value);
+      }
+    </script>
+  </body>
+</html>
