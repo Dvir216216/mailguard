@@ -115,52 +115,6 @@ function suspiciousAttachment(attachments) {
   return 0;
 }
 
-function whoisLookup(domain) {
-  return new Promise((resolve) => {
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        resolve(null);
-      }
-    }, 5000);
-    try {
-      whois.lookup(domain, (err, data) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        if (err) return resolve(null);
-        resolve(data);
-      });
-    } catch {
-      if (!settled) {
-        settled = true;
-        clearTimeout(timer);
-        resolve(null);
-      }
-    }
-  });
-}
-
-function parseCreationDate(whoisText) {
-  if (!whoisText || typeof whoisText !== 'string') return null;
-  const patterns = [
-    /Creation Date:\s*([^\r\n]+)/i,
-    /Created On:\s*([^\r\n]+)/i,
-    /Created:\s*([^\r\n]+)/i,
-    /Domain Registration Date:\s*([^\r\n]+)/i,
-    /Registered on:\s*([^\r\n]+)/i,
-    /created:\s*([^\r\n]+)/i
-  ];
-  for (const re of patterns) {
-    const m = whoisText.match(re);
-    if (m) {
-      const date = new Date(m[1].trim());
-      if (!isNaN(date.getTime())) return date;
-    }
-  }
-  return null;
-}
 
 async function newlyRegisteredDomain(senderDomain) {
   if (!senderDomain) return { points: 0, signal: null };
@@ -234,10 +188,10 @@ async function analyzeHeuristics(payload) {
 
   try {
     const senderDomain = getDomain(payload.sender_email);
-    const newDomainPoints = await newlyRegisteredDomain(senderDomain);
-    if (newDomainPoints > 0) {
-      signals.push({ name: 'Newly registered domain (<30 days)', points: newDomainPoints });
-      totalPoints += newDomainPoints;
+    const newDomainResult = await newlyRegisteredDomain(senderDomain);
+    if (newDomainResult.points > 0) {
+      signals.push(newDomainResult.signal);
+      totalPoints += newDomainResult.points;
     }
   } catch (err) {
     console.warn('[heuristics] newly-registered-domain check failed:', err.message);
