@@ -1,6 +1,6 @@
 const punycode = require('punycode');
 const { distance } = require('fastest-levenshtein');
-const whois = require('whois');
+const whoiser = require('whoiser');
 const cache = require('../utils/cache');
 
 const PROTECTED_BRANDS = [
@@ -163,30 +163,47 @@ function parseCreationDate(whoisText) {
 }
 
 async function newlyRegisteredDomain(senderDomain) {
-  if (!senderDomain) return 0;
-  const cacheKey = `whois:${senderDomain}`;
-  const cached = cache.get(cacheKey);
-  if (cached !== null) {
-    return cached.points;
+  if (!senderDomain) return { points: 0, signal: null };
+
+  const cacheKey = 'whois:' + senderDomain;
+  if (cache.has(cacheKey)) {
+    return cache.get(cacheKey);
   }
+
   try {
-    const data = await whoisLookup(senderDomain);
-    if (!data) {
-      cache.set(cacheKey, { points: 0 }, 24 * 3600);
-      return 0;
+    const result = await whoiser(senderDomain, { timeout: 3000 });
+    
+    // whoiser returns an object keyed by whois server
+    // Find the first entry that has a creation date
+    let createdDate = null;
+    for (const server of Object.values(result)) {
+      const created = server['Created Date'] || 
+                      server['Creation Date'] || 
+                      server['created'] ||
+                      server['domain_dateregistered'];
+      if (created) {
+        createdDate = new Date(Array.isArray(created) ? created[0] : created);
+        break;
+      }
     }
-    const created = parseCreationDate(data);
-    if (!created) {
-      cache.set(cacheKey, { points: 0 }, 24 * 3600);
-      return 0;
+
+    if (!createdDate || isNaN(createdDate.getTime())) {
+      cache.set(cacheKey, { points: 0, signal: null }, 86400);
+      return { points: 0, signal: null };
     }
-    const ageDays = (Date.now() - created.getTime()) / 86400000;
-    const points = ageDays < 30 ? 15 : 0;
-    cache.set(cacheKey, { points }, 24 * 3600);
-    return points;
+
+    const ageInDays = (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+    const outcome = ageInDays < 30
+      ? { points: 15, signal: { name: `Newly registered domain (${Math.floor(ageInDays)}d old)`, points: 15 } }
+      : { points: 0, signal: null };
+
+    cache.set(cacheKey, outcome, 86400);
+    return outcome;
+
   } catch (err) {
-    console.warn('[heuristics] whois failed:', err.message);
-    return 0;
+    console.warn('[heuristics] whois failed for', senderDomain, ':', err.message);
+    cache.set(cacheKey, { points: 0, signal: null }, 86400);
+    return { points: 0, signal: null };
   }
 }
 
