@@ -122,7 +122,8 @@ async function newlyRegisteredDomain(senderDomain) {
   if (cache.has(cacheKey)) return cache.get(cacheKey);
 
   try {
-    const { default: whoiser } = await import('whoiser');
+    const whoiserModule = await import('whoiser');
+    const whoiser = whoiserModule.default || whoiserModule;
     const result = await whoiser(senderDomain, { timeout: 3000 });
 
     let createdDate = null;
